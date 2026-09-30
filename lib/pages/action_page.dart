@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../models/green_action.dart'; //[cite: 2]
+import '../widgets/action_page/ambient_particle_painter.dart';
+import '../widgets/action_page/pet_bento_card.dart';
+import '../widgets/action_page/emotion_cloud_card.dart';
 
-import '../models/green_action.dart';
-
-class ActionPage extends StatelessWidget {
+class ActionPage extends StatefulWidget {
   final List<GreenAction> logs;
   final int totalPoints;
 
@@ -43,72 +45,292 @@ class ActionPage extends StatelessWidget {
   });
 
   @override
+  State<ActionPage> createState() => _ActionPageState();
+}
+
+class _ActionPageState extends State<ActionPage> {
+  // A+B 主題狀態 (預設海洋 Ocean 🐢)
+  ActionThemeType _currentTheme = ActionThemeType.ocean;
+
+  @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return CustomScrollView(
       key: const PageStorageKey('action-page'),
       physics: const BouncingScrollPhysics(),
       slivers: [
-        const SliverPadding(
-          padding: EdgeInsets.only(top: 18),
+        // 頂部列：章節標題 + A/B 主題切換按鈕 (Theme Switcher Pill)
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
           sliver: SliverToBoxAdapter(
-            child: _SectionTitle(
-              title: '我的永續羈絆',
-              subtitle: '今天也讓你的綠色夥伴成長一點點。',
-              icon: Icons.pets_rounded,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '永續綠色基地',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                    ),
+                    Text(
+                      '培育你的專屬綠色夥伴',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+
+                // 主題切換軟膠囊按鈕 (A+B 切換)
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      _ThemeToggleButton(
+                        icon: Icons.water_drop_rounded,
+                        label: '海洋',
+                        isSelected: _currentTheme == ActionThemeType.ocean,
+                        activeColor: const Color(0xFF1971C2),
+                        onTap: () => setState(() => _currentTheme = ActionThemeType.ocean),
+                      ),
+                      _ThemeToggleButton(
+                        icon: Icons.eco_rounded,
+                        label: '森林',
+                        isSelected: _currentTheme == ActionThemeType.forest,
+                        activeColor: const Color(0xFF2B8A3E),
+                        onTap: () => setState(() => _currentTheme = ActionThemeType.forest),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
 
+        // 1. Bento Grid Hero 主卡片 (寵物狀態 + 常駐粒子)
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          sliver: SliverToBoxAdapter(
+            child: PetBentoCard(
+              totalPoints: widget.totalPoints,
+              currentTheme: _currentTheme,
+            ),
+          ),
+        ),
+
+        // 2. Bento Grid 非對稱雙格 (行動選擇 + 快速連霸統計)
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
           sliver: SliverToBoxAdapter(
-            child: _PetCard(totalPoints: totalPoints),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 行動下拉選擇 (占 1.8 比例)
+                Expanded(
+                  flex: 18,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: colorScheme.outlineVariant.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.eco_rounded, size: 18, color: colorScheme.primary),
+                            const SizedBox(width: 6),
+                            const Text(
+                              '今日行動',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: widget.selectedAction,
+                          isExpanded: true,
+                          style: TextStyle(
+                            color: colorScheme.onSurface,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          icon: Icon(Icons.keyboard_arrow_down_rounded, color: colorScheme.primary),
+                          dropdownColor: colorScheme.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(16),
+                          items: widget.actions
+                              .map(
+                                (action) => DropdownMenuItem(
+                                  value: action,
+                                  child: Text(action, overflow: TextOverflow.ellipsis),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: widget.onActionChanged,
+                          decoration: InputDecoration(
+                            hintText: '點擊選擇...',
+                            hintStyle: const TextStyle(fontSize: 12),
+                            filled: true,
+                            fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // 快速連霸統計 (占 1 比例)
+                Expanded(
+                  flex: 10,
+                  child: Container(
+                    height: 118,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          colorScheme.tertiaryContainer.withValues(alpha: 0.4),
+                          colorScheme.surfaceContainerLow,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: colorScheme.tertiary.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.local_fire_department_rounded, color: colorScheme.tertiary, size: 28),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${widget.logs.length} 天',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: colorScheme.tertiary,
+                          ),
+                        ),
+                        Text(
+                          '連續打卡紀錄',
+                          style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
 
+        // 3. Bento Grid: 情緒覺察雲組件
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
           sliver: SliverToBoxAdapter(
-            child: _buildActionCard(context),
+            child: EmotionCloudCard(
+              emotions: widget.emotions,
+              selectedEmotion: widget.selectedEmotion,
+              onEmotionSelected: (val) => widget.onEmotionChanged(val),
+            ),
           ),
         ),
 
+        // 4. 反思框與開關選項整合卡片
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
           sliver: SliverToBoxAdapter(
-            child: _buildEmotionCard(context),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.25)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.6),
+                        child: Icon(Icons.edit_note_rounded, size: 18, color: colorScheme.primary),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text('策略筆記與分享', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: widget.reflectionController,
+                    maxLines: 2,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: '寫下今天的收穫或挑戰...',
+                      hintStyle: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+                      filled: true,
+                      fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                      contentPadding: const EdgeInsets.all(14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: const Text('承認失敗並重新出發', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    subtitle: const Text('獲得韌性加分 (+15 XP)', style: TextStyle(fontSize: 11)),
+                    value: widget.isRestart,
+                    onChanged: widget.onRestartChanged,
+                  ),
+                  Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.2)),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: const Text('匿名分享至班級共好牆', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    value: widget.isAnonymous,
+                    onChanged: widget.onAnonymousChanged,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
 
+        // 5. 提交按鈕
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          sliver: SliverToBoxAdapter(
-            child: _buildReflectionCard(context),
-          ),
-        ),
-
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          sliver: SliverToBoxAdapter(
-            child: _buildOptionsCard(context),
-          ),
-        ),
-
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
           sliver: SliverToBoxAdapter(
             child: SizedBox(
-              height: 56,
+              height: 54,
               child: FilledButton.icon(
-                onPressed: onSubmit,
-                icon: const Icon(Icons.rocket_launch_rounded),
-                label: const Text(
-                  '記錄行動，守護地球！',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                onPressed: widget.onSubmit,
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  elevation: 2,
                 ),
+                icon: const Icon(Icons.rocket_launch_rounded),
+                label: const Text('記錄行動，守護地球！', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
               ),
             ),
           ),
@@ -116,383 +338,49 @@ class ActionPage extends StatelessWidget {
       ],
     );
   }
-
-  Widget _buildActionCard(BuildContext context) {
-    return _ModernCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _CardHeader(
-            icon: Icons.eco_rounded,
-            title: '今日永續行動',
-            subtitle: '選擇你今天完成的綠色行動',
-          ),
-          const SizedBox(height: 18),
-          DropdownButtonFormField<String>(
-            initialValue: selectedAction,
-            items: actions
-                .map(
-                  (action) => DropdownMenuItem(
-                    value: action,
-                    child: Text(action),
-                  ),
-                )
-                .toList(),
-            onChanged: onActionChanged,
-            decoration: InputDecoration(
-              hintText: '選擇一項行動...',
-              filled: true,
-              fillColor: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withValues(alpha: 0.5),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-          //const SizedBox(height: 18)
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmotionCard(BuildContext context) {
-    return _ModernCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _CardHeader(
-            icon: Icons.mood_rounded,
-            title: '情緒覺察',
-            subtitle: '記錄完成行動時的感受',
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: emotions.map((emotion) {
-              final selected = selectedEmotion == emotion;
-
-              return ChoiceChip(
-                label: Text(emotion),
-                selected: selected,
-                onSelected: (value) {
-                  if (value) {
-                    onEmotionChanged(emotion);
-                  }
-                },
-                avatar: Icon(
-                  selected
-                      ? Icons.check_rounded
-                      : Icons.mood_rounded,
-                  size: 18,
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReflectionCard(BuildContext context) {
-    return _ModernCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _CardHeader(
-            icon: Icons.edit_note_rounded,
-            title: '策略與反思',
-            subtitle: '寫下今天的心得，讓行動變得更有意義',
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: reflectionController,
-            maxLines: 4,
-            decoration: InputDecoration(
-              hintText: '遇到什麼困難？下次可以怎麼做？',
-              filled: true,
-              fillColor: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withValues(alpha: 0.5),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOptionsCard(BuildContext context) {
-    return _ModernCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          SwitchListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 18,
-              vertical: 4,
-            ),
-            secondary: const CircleAvatar(
-              child: Icon(Icons.restart_alt_rounded),
-            ),
-            title: const Text(
-              '重新開始',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: const Text(
-              '承認失敗並重新出發，獲得韌性加分',
-            ),
-            value: isRestart,
-            onChanged: onRestartChanged,
-          ),
-          const Divider(height: 1),
-          SwitchListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 18,
-              vertical: 4,
-            ),
-            secondary: const CircleAvatar(
-              child: Icon(Icons.visibility_off_rounded),
-            ),
-            title: const Text(
-              '匿名分享',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: const Text(
-              '匿名分享至班級共好牆',
-            ),
-            value: isAnonymous,
-            onChanged: onAnonymousChanged,
-          ),
-        ],
-      ),
-    );
-  }
 }
 
-class _PetCard extends StatelessWidget {
-  final int totalPoints;
+// 主題切換按鈕小組件
+class _ThemeToggleButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final Color activeColor;
+  final VoidCallback onTap;
 
-  const _PetCard({
-    required this.totalPoints,
+  const _ThemeToggleButton({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.activeColor,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    IconData icon;
-    Color color;
-    String stage;
-    String message;
-
-    if (totalPoints < 30) {
-      icon = Icons.egg_rounded;
-      color = Colors.grey;
-      stage = '海龜卵';
-      message = '還差一點點就能孵化囉！';
-    } else if (totalPoints < 100) {
-      icon = Icons.pets_rounded;
-      color = Colors.green;
-      stage = '小海龜';
-      message = '小海龜正在因你的行動而茁壯！';
-    } else {
-      icon = Icons.pets_rounded;
-      color = Colors.blue;
-      stage = '健康海龜';
-      message = '太棒了！你養育了一隻健康海龜！';
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color.withValues(alpha: 0.14),
-            color.withValues(alpha: 0.04),
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 14, color: isSelected ? Colors.white : Colors.grey),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? Colors.white : Colors.grey,
+              ),
+            ),
           ],
         ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: color.withValues(alpha: 0.12),
-        ),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 38,
-            backgroundColor: color.withValues(alpha: 0.15),
-            child: Icon(
-              icon,
-              size: 42,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  stage,
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 19,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '$totalPoints XP',
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ModernCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  const _ModernCard({
-    required this.child,
-    this.padding = const EdgeInsets.all(18),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: Theme.of(context).colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Padding(
-        padding: padding,
-        child: child,
-      ),
-    );
-  }
-}
-
-class _CardHeader extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _CardHeader({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 21,
-          child: Icon(icon, size: 21),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-
-  const _SectionTitle({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Icon(icon),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
