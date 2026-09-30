@@ -220,7 +220,7 @@ class _ActionPageState extends State<ActionPage> {
                         Icon(Icons.local_fire_department_rounded, color: colorScheme.tertiary, size: 28),
                         const SizedBox(height: 4),
                         Text(
-                          '${widget.logs.length} 天',
+                          '${widget.logs.length} ',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
@@ -228,7 +228,7 @@ class _ActionPageState extends State<ActionPage> {
                           ),
                         ),
                         Text(
-                          '連續打卡紀錄',
+                          '好習慣累積次數',
                           style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant),
                         ),
                       ],

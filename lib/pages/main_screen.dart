@@ -4,8 +4,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../main.dart';
 import '../models/green_action.dart';
-
+import '../theme/app_theme.dart';
+import '../widgets/theme_selector_dialog.dart';
 import '../widgets/wave_header.dart';
 
 import 'action_page.dart';
@@ -51,41 +53,31 @@ class _MainScreenState extends State<MainScreen>
 
   int _currentTab = 0;
 
-  final List<_HeaderData> _headers = const [
-    _HeaderData(
+  final List<_HeaderInfo> _headerInfos = const [
+    _HeaderInfo(
       icon: Icons.eco_rounded,
       title: '今日綠色行動',
       subtitle: '每一個小小行動，都正在改變地球。',
-      color: Color(0xFF087F5B),
-      secondaryColor: Color(0xFF20C997),
     ),
-    _HeaderData(
+    _HeaderInfo(
       icon: Icons.water_drop_rounded,
       title: '班級共好任務',
       subtitle: '一起累積綠色能量，完成班級史詩任務。',
-      color: Color(0xFF1971C2),
-      secondaryColor: Color(0xFF339AF0),
     ),
-    _HeaderData(
+    _HeaderInfo(
       icon: Icons.emoji_events_rounded,
       title: '成就收藏',
       subtitle: '解鎖你的每一個綠色里程碑。',
-      color: Color(0xFFE67700),
-      secondaryColor: Color(0xFFFFC107),
     ),
-    _HeaderData(
+    _HeaderInfo(
       icon: Icons.pets_rounded,
       title: '我的綠色夥伴',
       subtitle: '你的每一次行動，都讓牠逐漸成長。',
-      color: Color(0xFF2B8A3E),
-      secondaryColor: Color(0xFF69DB7C),
     ),
-    _HeaderData(
+    _HeaderInfo(
       icon: Icons.star_rounded,
       title: '玩家成長',
       subtitle: '累積 XP，提升你的永續等級。',
-      color: Color(0xFF7048E8),
-      secondaryColor: Color(0xFF9775FA),
     ),
   ];
 
@@ -99,7 +91,6 @@ class _MainScreenState extends State<MainScreen>
     );
 
     _tabController.addListener(_handleTabChanged);
-
     _loadLogs();
   }
 
@@ -123,9 +114,7 @@ class _MainScreenState extends State<MainScreen>
     final prefs = await SharedPreferences.getInstance();
     final String? logsString = prefs.getString('green_logs_v1');
 
-    if (logsString == null) {
-      return;
-    }
+    if (logsString == null) return;
 
     final List<dynamic> decodedList = jsonDecode(logsString);
 
@@ -133,31 +122,21 @@ class _MainScreenState extends State<MainScreen>
 
     setState(() {
       _logs.addAll(
-        decodedList
-            .map((e) => GreenAction.fromJson(e))
-            .toList(),
+        decodedList.map((e) => GreenAction.fromJson(e)).toList(),
       );
     });
   }
 
   Future<void> _saveLogs() async {
     final prefs = await SharedPreferences.getInstance();
-
     final String encodedList = jsonEncode(
       _logs.map((e) => e.toJson()).toList(),
     );
-
-    await prefs.setString(
-      'green_logs_v1',
-      encodedList,
-    );
+    await prefs.setString('green_logs_v1', encodedList);
   }
 
   int get totalPoints {
-    return _logs.fold(
-      0,
-      (sum, log) => sum + log.earnedPoints,
-    );
+    return _logs.fold(0, (sum, log) => sum + log.earnedPoints);
   }
 
   void _submitAction() {
@@ -170,12 +149,9 @@ class _MainScreenState extends State<MainScreen>
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          content: const Text(
-            '⚠️ 請完成行動選擇、情緒覺察與反思筆記！',
-          ),
+          content: const Text('⚠️ 請完成行動選擇、情緒覺察與反思筆記！'),
         ),
       );
-
       return;
     }
 
@@ -217,9 +193,7 @@ class _MainScreenState extends State<MainScreen>
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
-        content: Text(
-          '🌱 紀錄成功！獲得 $points XP',
-        ),
+        content: Text('🌱 紀錄成功！獲得 $points XP'),
       ),
     );
 
@@ -235,8 +209,7 @@ class _MainScreenState extends State<MainScreen>
       '你的反思讓這次行動變得更有意義，繼續保持覺察喔！',
     ];
 
-    final randomFact =
-        facts[Random().nextInt(facts.length)];
+    final randomFact = facts[Random().nextInt(facts.length)];
 
     showDialog(
       context: context,
@@ -245,14 +218,10 @@ class _MainScreenState extends State<MainScreen>
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(28),
           ),
-          title: Text(
-            '解鎖綠色成就 🎁 +$earnedPoints XP',
-          ),
+          title: Text('解鎖綠色成就 🎁 +$earnedPoints XP'),
           content: Text(
             randomFact,
-            style: const TextStyle(
-              height: 1.6,
-            ),
+            style: const TextStyle(height: 1.6),
           ),
           actions: [
             FilledButton(
@@ -265,9 +234,27 @@ class _MainScreenState extends State<MainScreen>
     );
   }
 
+  void _showThemeDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return ThemeSelectorDialog(
+          currentMode: currentThemeNotifier.value,
+          onThemeSelected: (newMode) {
+            OctalysisGreenApp.changeTheme(newMode);
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final header = _headers[_currentTab];
+    final currentThemeMode = currentThemeNotifier.value;
+    final headerInfo = _headerInfos[_currentTab];
+
+    // 動態取得當前主題對應當前分頁的雙色漸層集
+    final colorSet = AppTheme.getHeaderColors(currentThemeMode, _currentTab);
 
     return Scaffold(
       body: NestedScrollView(
@@ -280,7 +267,7 @@ class _MainScreenState extends State<MainScreen>
               pinned: true,
               floating: false,
               elevation: 0,
-              backgroundColor: header.color,
+              backgroundColor: colorSet.primary,
               surfaceTintColor: Colors.transparent,
               automaticallyImplyLeading: false,
               titleSpacing: 20,
@@ -307,14 +294,14 @@ class _MainScreenState extends State<MainScreen>
                   key: ValueKey(_currentTab),
                   children: [
                     Icon(
-                      header.icon,
+                      headerInfo.icon,
                       color: Colors.white,
                       size: 25,
                     ),
                     const SizedBox(width: 10),
-                    Text(
+                    const Text(
                       'SDGs 永續習慣養成',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
                         fontSize: 18,
@@ -323,9 +310,23 @@ class _MainScreenState extends State<MainScreen>
                   ],
                 ),
               ),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: IconButton.filledTonal(
+                    onPressed: _showThemeDialog,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.22),
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.palette_outlined, size: 22),
+                    tooltip: '切換主題',
+                  ),
+                ),
+              ],
               flexibleSpace: FlexibleSpaceBar(
                 collapseMode: CollapseMode.parallax,
-                background: _buildHeader(header),
+                background: _buildHeader(headerInfo, colorSet),
               ),
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(58),
@@ -347,26 +348,10 @@ class _MainScreenState extends State<MainScreen>
               isRestart: _isRestart,
               isAnonymous: _isAnonymous,
               reflectionController: _reflectionController,
-              onActionChanged: (value) {
-                setState(() {
-                  _selectedAction = value;
-                });
-              },
-              onEmotionChanged: (value) {
-                setState(() {
-                  _selectedEmotion = value;
-                });
-              },
-              onRestartChanged: (value) {
-                setState(() {
-                  _isRestart = value;
-                });
-              },
-              onAnonymousChanged: (value) {
-                setState(() {
-                  _isAnonymous = value;
-                });
-              },
+              onActionChanged: (value) => setState(() => _selectedAction = value),
+              onEmotionChanged: (value) => setState(() => _selectedEmotion = value),
+              onRestartChanged: (value) => setState(() => _isRestart = value),
+              onAnonymousChanged: (value) => setState(() => _isAnonymous = value),
               onSubmit: _submitAction,
             ),
             CommunityPage(logs: _logs),
@@ -379,35 +364,34 @@ class _MainScreenState extends State<MainScreen>
     );
   }
 
-  Widget _buildHeader(_HeaderData header) {
+  Widget _buildHeader(_HeaderInfo headerInfo, HeaderColorSet colorSet) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        DecoratedBox(
+        // 平滑漸變背景容器
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                header.color,
-                header.secondaryColor,
+                colorSet.primary,
+                colorSet.secondary,
               ],
             ),
           ),
         ),
 
+        // 動態波浪圖層 (未來若要加入客製化 waveColor 可在此處帶入)
         const Positioned.fill(
           child: WaveHeader(),
         ),
 
         SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              20,
-              72,
-              20,
-              20,
-            ),
+            padding: const EdgeInsets.fromLTRB(20, 72, 20, 20),
             child: Align(
               alignment: Alignment.bottomLeft,
               child: AnimatedSwitcher(
@@ -426,7 +410,7 @@ class _MainScreenState extends State<MainScreen>
                     ),
                   );
                 },
-                child: _buildHeaderContent(header),
+                child: _buildHeaderContent(headerInfo),
               ),
             ),
           ),
@@ -435,9 +419,9 @@ class _MainScreenState extends State<MainScreen>
     );
   }
 
-  Widget _buildHeaderContent(_HeaderData header) {
+  Widget _buildHeaderContent(_HeaderInfo headerInfo) {
     return Column(
-      key: ValueKey(header.title),
+      key: ValueKey(headerInfo.title),
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -451,14 +435,14 @@ class _MainScreenState extends State<MainScreen>
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
-                header.icon,
+                headerInfo.icon,
                 color: Colors.white,
                 size: 24,
               ),
             ),
             const SizedBox(width: 12),
             Text(
-              header.title,
+              headerInfo.title,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 25,
@@ -470,7 +454,7 @@ class _MainScreenState extends State<MainScreen>
         ),
         const SizedBox(height: 8),
         Text(
-          header.subtitle,
+          headerInfo.subtitle,
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.88),
             fontSize: 14,
@@ -485,10 +469,7 @@ class _MainScreenState extends State<MainScreen>
 
   Widget _buildHeaderXP() {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(30),
@@ -532,65 +513,37 @@ class _MainScreenState extends State<MainScreen>
         tabAlignment: TabAlignment.center,
         dividerColor: Colors.transparent,
         indicatorSize: TabBarIndicatorSize.tab,
-        indicatorPadding: const EdgeInsets.symmetric(
-          horizontal: 5,
-          vertical: 7,
-        ),
+        indicatorPadding: const EdgeInsets.symmetric(horizontal: 5, vertical: 7),
         indicator: BoxDecoration(
-          color: Theme.of(context)
-              .colorScheme
-              .primaryContainer,
+          color: Theme.of(context).colorScheme.primaryContainer,
           borderRadius: BorderRadius.circular(16),
         ),
-        labelColor: Theme.of(context)
-            .colorScheme
-            .onPrimaryContainer,
-        unselectedLabelColor: Theme.of(context)
-            .colorScheme
-            .onSurfaceVariant,
+        labelColor: Theme.of(context).colorScheme.onPrimaryContainer,
+        unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
         labelStyle: const TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 12,
         ),
         tabs: const [
-          Tab(
-            icon: Icon(Icons.eco_rounded, size: 21),
-            text: '行動',
-          ),
-          Tab(
-            icon: Icon(Icons.forum_rounded, size: 21),
-            text: '共好牆',
-          ),
-          Tab(
-            icon: Icon(Icons.emoji_events_rounded, size: 21),
-            text: '成就',
-          ),
-          Tab(
-            icon: Icon(Icons.pets_rounded, size: 21),
-            text: '寵物',
-          ),
-          Tab(
-            icon: Icon(Icons.star_rounded, size: 21),
-            text: '玩家',
-          ),
+          Tab(icon: Icon(Icons.eco_rounded, size: 21), text: '行動'),
+          Tab(icon: Icon(Icons.forum_rounded, size: 21), text: '共好牆'),
+          Tab(icon: Icon(Icons.emoji_events_rounded, size: 21), text: '成就'),
+          Tab(icon: Icon(Icons.pets_rounded, size: 21), text: '寵物'),
+          Tab(icon: Icon(Icons.star_rounded, size: 21), text: '玩家'),
         ],
       ),
     );
   }
 }
 
-class _HeaderData {
+class _HeaderInfo {
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color color;
-  final Color secondaryColor;
 
-  const _HeaderData({
+  const _HeaderInfo({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.color,
-    required this.secondaryColor,
   });
 }
