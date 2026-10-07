@@ -7,8 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
 import '../models/green_action.dart';
 import '../theme/app_theme.dart';
-import '../widgets/theme_selector_dialog.dart';
-import '../widgets/wave_header.dart';
+import '../widgets/header_effects/dynamic_header_effect.dart';
+import '../widgets/settings_dialog.dart';
 
 import 'action_page.dart';
 import 'community_page.dart';
@@ -234,11 +234,11 @@ class _MainScreenState extends State<MainScreen>
     );
   }
 
-  void _showThemeDialog() {
+  void _showSettingsDialog() {
     showDialog(
       context: context,
       builder: (context) {
-        return ThemeSelectorDialog(
+        return SettingsDialog(
           currentMode: currentThemeNotifier.value,
           onThemeSelected: (newMode) {
             OctalysisGreenApp.changeTheme(newMode);
@@ -252,8 +252,6 @@ class _MainScreenState extends State<MainScreen>
   Widget build(BuildContext context) {
     final currentThemeMode = currentThemeNotifier.value;
     final headerInfo = _headerInfos[_currentTab];
-
-    // 動態取得當前主題對應當前分頁的雙色漸層集
     final colorSet = AppTheme.getHeaderColors(currentThemeMode, _currentTab);
 
     return Scaffold(
@@ -262,41 +260,26 @@ class _MainScreenState extends State<MainScreen>
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
             SliverAppBar(
-              expandedHeight: 230,
-              collapsedHeight: 72,
+              expandedHeight: 240,
+              toolbarHeight: 60,
               pinned: true,
               floating: false,
               elevation: 0,
+              scrolledUnderElevation: 0,
+              // 1. 修復關鍵：賦予收合時穩定的背景顏色，避免穿透崩塌
               backgroundColor: colorSet.primary,
               surfaceTintColor: Colors.transparent,
               automaticallyImplyLeading: false,
               titleSpacing: 20,
               title: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 350),
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0, 0.25),
-                        end: Offset.zero,
-                      ).animate(
-                        CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOutCubic,
-                        ),
-                      ),
-                      child: child,
-                    ),
-                  );
-                },
                 child: Row(
                   key: ValueKey(_currentTab),
                   children: [
                     Icon(
                       headerInfo.icon,
                       color: Colors.white,
-                      size: 25,
+                      size: 24,
                     ),
                     const SizedBox(width: 10),
                     const Text(
@@ -314,19 +297,19 @@ class _MainScreenState extends State<MainScreen>
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: IconButton.filledTonal(
-                    onPressed: _showThemeDialog,
+                    onPressed: _showSettingsDialog,
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.22),
                       foregroundColor: Colors.white,
                     ),
-                    icon: const Icon(Icons.palette_outlined, size: 22),
-                    tooltip: '切換主題',
+                    icon: const Icon(Icons.settings_outlined, size: 22),
+                    tooltip: '設定與使用說明',
                   ),
                 ),
               ],
               flexibleSpace: FlexibleSpaceBar(
                 collapseMode: CollapseMode.parallax,
-                background: _buildHeader(headerInfo, colorSet),
+                background: _buildHeader(headerInfo, colorSet, currentThemeMode),
               ),
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(58),
@@ -364,58 +347,58 @@ class _MainScreenState extends State<MainScreen>
     );
   }
 
-  Widget _buildHeader(_HeaderInfo headerInfo, HeaderColorSet colorSet) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // 平滑漸變背景容器
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colorSet.primary,
-                colorSet.secondary,
-              ],
-            ),
-          ),
-        ),
-
-        // 動態波浪圖層 (未來若要加入客製化 waveColor 可在此處帶入)
-        const Positioned.fill(
-          child: WaveHeader(),
-        ),
-
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 72, 20, 20),
-            child: Align(
-              alignment: Alignment.bottomLeft,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 450),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0, 0.18),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
-                    ),
-                  );
-                },
-                child: _buildHeaderContent(headerInfo),
+  Widget _buildHeader(
+    _HeaderInfo headerInfo,
+    HeaderColorSet colorSet,
+    AppThemeMode currentThemeMode,
+  ) {
+    // 2. 修復關鍵：使用 ClipRect 確保收合高度減少時，內容不會超出或強行壓縮擠爆
+    return ClipRect(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 動態漸層底色
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  colorSet.primary,
+                  colorSet.secondary,
+                ],
               ),
             ),
           ),
-        ),
-      ],
+
+          // 特效層
+          Positioned.fill(
+            child: DynamicHeaderEffect(
+              themeMode: currentThemeMode,
+            ),
+          ),
+
+          // 上層標題與內文 (邊界與收合保護)
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 60, 20, 68),
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 450),
+                    child: _buildHeaderContent(headerInfo),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -428,40 +411,40 @@ class _MainScreenState extends State<MainScreen>
         Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 headerInfo.icon,
                 color: Colors.white,
-                size: 24,
+                size: 22,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Text(
               headerInfo.title,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 25,
+                fontSize: 23,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           headerInfo.subtitle,
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.88),
-            fontSize: 14,
-            height: 1.35,
+            fontSize: 13,
+            height: 1.3,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         _buildHeaderXP(),
       ],
     );
@@ -469,7 +452,7 @@ class _MainScreenState extends State<MainScreen>
 
   Widget _buildHeaderXP() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(30),
@@ -483,7 +466,7 @@ class _MainScreenState extends State<MainScreen>
           const Icon(
             Icons.star_rounded,
             color: Colors.amber,
-            size: 19,
+            size: 18,
           ),
           const SizedBox(width: 5),
           Text(
@@ -491,6 +474,7 @@ class _MainScreenState extends State<MainScreen>
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
+              fontSize: 13,
             ),
           ),
         ],

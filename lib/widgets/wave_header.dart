@@ -1,13 +1,12 @@
-import 'dart:math' as math;
-
+import 'dart:math';
 import 'package:flutter/material.dart';
 
 class WaveHeader extends StatefulWidget {
-  final Color color;
+  final Color? color;
 
   const WaveHeader({
     super.key,
-    this.color = Colors.white,
+    this.color,
   });
 
   @override
@@ -16,15 +15,14 @@ class WaveHeader extends StatefulWidget {
 
 class _WaveHeaderState extends State<WaveHeader>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 7),
+      duration: const Duration(seconds: 4),
     )..repeat();
   }
 
@@ -36,22 +34,18 @@ class _WaveHeaderState extends State<WaveHeader>
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            return CustomPaint(
-              painter: _WavePainter(
-                progress: _controller.value,
-                color: widget.color,
-              ),
-              child: child,
-            );
-          },
-          child: const SizedBox.expand(),
-        ),
-      ),
+    final waveColor = widget.color ?? Colors.white.withValues(alpha: 0.22);
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: _WavePainter(
+            progress: _controller.value,
+            color: waveColor,
+          ),
+        );
+      },
     );
   }
 }
@@ -68,84 +62,27 @@ class _WavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+      ..color = color
+      ..style = PaintingStyle.fill;
 
-    final waveConfigs = [
-      _WaveConfig(
-        amplitude: 15,
-        wavelength: 110,
-        speed: 1.0,
-        opacity: 0.18,
-        strokeWidth: 2,
-        verticalPosition: 0.70,
-      ),
-      _WaveConfig(
-        amplitude: 11,
-        wavelength: 90,
-        speed: 1.35,
-        opacity: 0.12,
-        strokeWidth: 1.7,
-        verticalPosition: 0.80,
-      ),
-      _WaveConfig(
-        amplitude: 18,
-        wavelength: 135,
-        speed: 0.75,
-        opacity: 0.09,
-        strokeWidth: 2.5,
-        verticalPosition: 0.91,
-      ),
-    ];
+    final path = Path();
+    path.moveTo(0, size.height);
 
-    for (final config in waveConfigs) {
-      paint
-        ..color = color.withValues(alpha: config.opacity)
-        ..strokeWidth = config.strokeWidth;
-
-      final path = Path();
-
-      final centerY = size.height * config.verticalPosition;
-
-      for (double x = 0; x <= size.width; x += 2) {
-        final angle =
-            (x / config.wavelength * math.pi * 2) +
-            (progress * math.pi * 2 * config.speed);
-
-        final y = centerY + math.sin(angle) * config.amplitude;
-
-        if (x == 0) {
-          path.moveTo(x, y);
-        } else {
-          path.lineTo(x, y);
-        }
-      }
-
-      canvas.drawPath(path, paint);
+    for (double i = 0; i <= size.width; i++) {
+      final y = sin((i / size.width * 2 * pi) + (progress * 2 * pi)) * 12 +
+          size.height * 0.75;
+      path.lineTo(i, y);
     }
+
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+
+    canvas.drawPath(path, paint);
   }
 
   @override
   bool shouldRepaint(covariant _WavePainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.color != color;
+    return oldDelegate.progress != progress || oldDelegate.color != color;
   }
-}
-
-class _WaveConfig {
-  final double amplitude;
-  final double wavelength;
-  final double speed;
-  final double opacity;
-  final double strokeWidth;
-  final double verticalPosition;
-
-  const _WaveConfig({
-    required this.amplitude,
-    required this.wavelength,
-    required this.speed,
-    required this.opacity,
-    required this.strokeWidth,
-    required this.verticalPosition,
-  });
 }

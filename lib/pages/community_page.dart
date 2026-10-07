@@ -17,7 +17,7 @@ class CommunityPage extends StatelessWidget {
       (sum, log) => sum + log.earnedPoints,
     );
 
-    final simulatedClassPoints = 850 + localPoints;
+    final simulatedClassPoints = 0 + localPoints;
 
     return CustomScrollView(
       key: const PageStorageKey('community-page'),
